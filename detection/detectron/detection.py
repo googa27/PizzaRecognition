@@ -23,6 +23,7 @@ class DetectronPizzaDetector(AbstractPizzaDetector):
         cfg = get_cfg()
         cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
         cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1  # only has one class (pizza)
+        cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.8
         cfg.MODEL.WEIGHTS = self.weights_path
         predictor = DefaultPredictor(cfg)
         return predictor
