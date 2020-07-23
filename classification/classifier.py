@@ -14,6 +14,10 @@ class PizzaClassifier:
     
     @staticmethod
     def resize_pizza(pizza, target_size):
+        """
+        Método auxiliar que recibe el frame de una pizza junto con un tamano (int) objetivo,
+        para luego ajustar la imagen al tamano deseado, haciendo el padding necesario.
+        """
         pizza_size = np.array(pizza.shape[:2])
 
         fx, fy = target_size / pizza_size
@@ -27,8 +31,6 @@ class PizzaClassifier:
                                           0, bottom_padding, 
                                           0, right_padding, 
                                           cv2.BORDER_CONSTANT, value=(0,0,0))
-        
-        #print(pizza_padded.shape)
 
         return pizza_padded.reshape([1, *(pizza_padded.shape)]).astype(np.float32)
 
@@ -53,8 +55,6 @@ class PizzaClassifier:
           video.set(1, row.frame)
           _, frame = video.read()
 
-          #print(frame.shape())
-
           # Extract pizza
           top = max(0, row.y1)
           bottom = min(frame.shape[0], row.y2)
@@ -74,6 +74,11 @@ class PizzaClassifier:
         return df_out
       
     def load_model(self, model):
+        """
+        Método recibe el path a un modelo de tf.keras fine-tuned
+        (guardado con model.save(MODEL_PATH, save_format="tf") y
+        lo asigna al atributo "model" de PizzaClassfier.
+        """
         if type(model) is str:
             self.model = tf.keras.models.load_model(model)
         else: 
