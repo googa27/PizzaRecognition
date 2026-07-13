@@ -1,0 +1,193 @@
+{
+  "schema_version": "1.0.0",
+  "repository": {
+    "owner": "googa27",
+    "name": "PizzaRecognition",
+    "profile": "legacy",
+    "status": "Fork / Legacy ML",
+    "enforcement": "Advisory",
+    "project": "https://github.com/users/googa27/projects/24",
+    "issue": "https://github.com/googa27/arxiv-implementation-lab/issues/24",
+    "upstream": "https://github.com/TamaraCucumides/PizzaRecognition.git"
+  },
+  "preservation": {
+    "archival_notice": "Historical/reference preservation only; not maintained, production-ready, secure, or operationally validated.",
+    "supersession_notice": "Prefer canonical upstream and maintained libraries for new work; this repository preserves attribution and evidence.",
+    "revival_gates": [
+      "Resolve source/upstream and root license before distributing code, images, labels, or weights.",
+      "Define dataset card/model card with provenance, rights, split, metrics, and failure modes.",
+      "Pin ML framework, Python, GPU/CUDA/cuDNN/driver or CPU-only runtime versions and add deterministic smoke tests using public-synthetic images.",
+      "Review artifact loading security before accepting external weights or serialized objects."
+    ],
+    "provenance": "upstream ML project fork; preserve upstream compatibility and attribution",
+    "license_warning": "No root LICENSE detected; verify upstream project, dataset, model-weight, and image licenses before reuse.",
+    "security_warning": "Treat model files and image inputs as untrusted; do not deserialize arbitrary artifacts without sandboxing and checksum/provenance review.",
+    "runtime_support_warning": "No GPU, CUDA, cuDNN, driver, container, model-weight, or training/inference runtime support is currently certified or tested by this preservation change; hardware acceleration and CPU-only fallback behavior are unknown until dependencies are pinned and public-synthetic smoke tests pass on the target environment.",
+    "private_data_warning": "Do not add private images, customer/store identifiers, model weights with unclear rights, or API keys.",
+    "data_posture": "Legacy image/model workflow only; image data, labels, trained weights, and evaluation splits require provenance/license/privacy review."
+  },
+  "architecture": {
+    "style": "evolutionary, contract-first, advisory-preservation",
+    "layers": [],
+    "import_boundaries": {
+      "authority": "Inherited layout plus this preservation contract; no new internal coupling without revival",
+      "forbidden": [],
+      "cycle_policy": "No new cycles; inherited structure is preserved unless a separate low-risk revival/refactor is approved"
+    },
+    "public_api_paths": [],
+    "extension_points": [
+      "documented public scripts/notebooks when present",
+      "typed APIs and deterministic CLIs only after revival",
+      "adapters behind explicit protocols"
+    ]
+  },
+  "source_layout": {
+    "python_rules_applicable": false,
+    "python_source_roots": [],
+    "metadata_names": [
+      "ARCHITECTURE.md",
+      "ARCHITECTURE.yaml",
+      "README.md",
+      "__init__.py",
+      "py.typed"
+    ],
+    "allowed_non_python_files": [],
+    "future_rule": "Any revived Python package uses a src layout unless an evidence-backed exception is approved."
+  },
+  "limits": {
+    "max_immediate_runtime_entries": 10,
+    "max_python_module_lines": 500,
+    "measurement": "physical UTF-8 lines; immediate runtime .py files excluding __init__.py plus runtime package directories"
+  },
+  "libraries": {
+    "selection_policy": "Prefer well-maintained libraries with maintenance/API/license evidence and adapter boundaries before custom implementation.",
+    "decisions": [
+      {
+        "capability": "object detection/classification",
+        "selected": [
+          "Detectron2",
+          "Ultralytics/YOLO",
+          "PyTorch/torchvision after version/license review"
+        ],
+        "alternatives": [
+          "Bespoke detector stack"
+        ],
+        "evidence": "Project #24 issue, docs/ARCHITECTURE.md, repository files, and cited research anchors",
+        "adapter_boundary": "Wrap maintained model runners behind a small adapter and public manifest.",
+        "custom_code_reason": "Only domain semantics, adapters, composition, or genuinely missing algorithms with oracle/reference tests are acceptable after revival."
+      },
+      {
+        "capability": "image processing/evaluation",
+        "selected": [
+          "OpenCV",
+          "Pillow",
+          "scikit-learn metrics"
+        ],
+        "alternatives": [
+          "Ad hoc parsers/metrics"
+        ],
+        "evidence": "Project #24 issue, docs/ARCHITECTURE.md, repository files, and cited research anchors",
+        "adapter_boundary": "Record dataset split/provenance before evaluation claims.",
+        "custom_code_reason": "Only domain semantics, adapters, composition, or genuinely missing algorithms with oracle/reference tests are acceptable after revival."
+      },
+      {
+        "capability": "architecture bootstrap",
+        "selected": [
+          "Python standard-library json over JSON-subset YAML"
+        ],
+        "alternatives": [
+          "Hand-written YAML parser"
+        ],
+        "evidence": "Project #24 issue, docs/ARCHITECTURE.md, repository files, and cited research anchors",
+        "adapter_boundary": "Dependency-free advisory gate only.",
+        "custom_code_reason": "Only domain semantics, adapters, composition, or genuinely missing algorithms with oracle/reference tests are acceptable after revival."
+      }
+    ]
+  },
+  "interfaces": {
+    "ai": {
+      "primary_agent": "Hermes Agent",
+      "context_file": "AGENTS.md",
+      "interaction": "Minimal AGENTS with upstream/revival guidance; no MCP/plugin.",
+      "capability_discovery": "AGENTS.md plus scripts/check_portfolio_architecture.py; no maintained runtime capability is claimed while archived.",
+      "skills": "Use/update a repo or class-level Hermes skill only for recurring non-trivial workflows after stable local contracts exist.",
+      "plugin_mcp_policy": "Deferred unless formal revival proves stable contracts, measured multi-client/tool interoperability, least privilege, and separate verification.",
+      "declared_entrypoints": [],
+      "mutation_safety": "Mutation is explicit, least-privileged, human-reviewable, and independently verified; no autonomous public side effects by default."
+    },
+    "human": {
+      "interaction": "Current script/demo API may be documented; typed model adapter only if independently revived.",
+      "public_api_paths": [],
+      "notebook_policy": "Deterministic public-synthetic notebooks/examples only after revival; legacy notebooks/scripts remain historical.",
+      "dunder_policy": "Only lawful Python/NumPy/IPython protocols with algebraic/parity tests; named methods own policy, effects, diagnostics, I/O, and ambiguity.",
+      "dunder_plan": [
+        "No API/dunder redesign in Project #24 preservation."
+      ],
+      "forbidden_dunders": [
+        "Ambiguous arithmetic/order",
+        "Stateful or effectful operators",
+        "Lossy implicit conversion",
+        "Dunders that hide policy, I/O, diagnostics, or failure modes"
+      ]
+    }
+  },
+  "tests": {
+    "required_suites": [
+      "unit",
+      "integration",
+      "e2e",
+      "architecture"
+    ],
+    "commands": {
+      "setup": "No supported automated setup is currently declared; treat this as a revival gate.",
+      "test": "No executable inherited runtime test command is currently declared; run the architecture checker only.",
+      "lint": "No lint command is currently declared.",
+      "architecture": "python scripts/check_portfolio_architecture.py"
+    },
+    "ci_workflow": "local/advisory only; enable blocking CI before revival or maintained runtime claims.",
+    "mirror_source": "Only after revival and stable source boundaries."
+  },
+  "data": {
+    "consumes_data": true,
+    "architecture": "Legacy image/model workflow only; image data, labels, trained weights, and evaluation splits require provenance/license/privacy review.",
+    "required_controls": [
+      "source registry",
+      "typed contracts",
+      "classification",
+      "lineage",
+      "quality",
+      "freshness/vintage/effective time",
+      "content identity",
+      "replay",
+      "validation",
+      "license/provenance review"
+    ],
+    "core_repositories": {
+      "PDP": "No core coupling; optional generic model-output manifest only after revival.",
+      "financial_problem_formulations": "No core coupling; optional generic model-output manifest only after revival.",
+      "ui_and_artifacts": "No core coupling; optional generic model-output manifest only after revival."
+    },
+    "source_registry_plan": [
+      "Resolve source/upstream and root license before distributing code, images, labels, or weights.",
+      "Define dataset card/model card with provenance, rights, split, metrics, and failure modes.",
+      "Pin ML framework, Python, GPU/CUDA/cuDNN/driver or CPU-only runtime versions and add deterministic smoke tests using public-synthetic images.",
+      "Review artifact loading security before accepting external weights or serialized objects."
+    ],
+    "flow": "source registry -> typed acquisition -> immutable Bronze -> canonical Silver -> curated Gold/features -> formulation/model -> governed output -> read-only UI/API/notebook",
+    "storage_and_replay": "Immutable raw/content-addressed inputs and public-synthetic fixtures are required before maintained data behavior is claimed.",
+    "quality_and_lineage": "Validate schema, grain, units, classification, lineage, freshness, license, and content identity before consumption; fail closed on missing evidence."
+  },
+  "governance": {
+    "architecture_source": "docs/ARCHITECTURE.yaml",
+    "update_rule": "Update README notice, AGENTS, contract, prose docs, tests, AI/human interfaces, and public API claims in the same change.",
+    "checker": "scripts/check_portfolio_architecture.py",
+    "required_documents": [
+      "README.md",
+      "AGENTS.md",
+      "docs/ARCHITECTURE.yaml",
+      "docs/ARCHITECTURE.md"
+    ],
+    "exception_policy": "Future exceptions must use an enforced checker rule name plus exact scope, reason, owner, risk, accepted ceiling, and refactoring trigger; no-growth ratchet."
+  },
+  "exceptions": []
+}
