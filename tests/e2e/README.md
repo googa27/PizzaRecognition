@@ -1,7 +1,5 @@
-# E2e tests
+# e2e tests
 
-Repository: `PizzaRecognition`.
+End-to-end tests belong here after revival for documented user workflows. No e2e gate is claimed while the repository remains legacy/advisory preservation.
 
-Installed public CLI/API golden paths using public-synthetic or sanitized fixtures.
-
-If no executable tests exist here yet, this README is the boundary contract: add the first test when a change introduces behavior in this tier.
+No training/inference, CPU/GPU fallback, CUDA, driver, or container e2e support is certified until a future revival adds deterministic public-synthetic smoke tests for the target environment.

@@ -1,60 +1,46 @@
 # AGENTS.md — PizzaRecognition
 
-## Purpose and safety
+Purpose: Project #24 legacy preservation. This repository is classified as `Fork / Legacy ML` with `legacy` profile and Advisory enforcement. Do not make unsupported maturity, security, maintenance, or production-readiness claims.
 
-`PizzaRecognition` is classified as `Fork / Legacy ML` under Portfolio Project #24. Preserve public/upstream compatibility, privacy, and evidence boundaries; do not infer maturity beyond executable tests.
+Canonical docs:
+- `README.md` root preservation notice
+- `docs/ARCHITECTURE.yaml` machine-readable source of truth
+- `docs/ARCHITECTURE.md` rationale and maintained-library/revival notes
 
-## Canonical documentation
+Provenance and attribution:
+- Origin owner: `googa27`; issue: https://github.com/googa27/arxiv-implementation-lab/issues/24
+- Upstream/canonical reference: https://github.com/TamaraCucumides/PizzaRecognition.git
+- Preserve history, existing public names, authorship, copyright notices, and file contents. Do not delete, rewrite, or hide inherited material in this preservation change.
 
-- `README.md` where present
-- `docs/ARCHITECTURE.yaml` — machine-readable source of truth
-- `docs/ARCHITECTURE.md` — rationale and extension guidance
+Safety boundaries:
+- License/provenance: No root LICENSE detected; verify upstream project, dataset, model-weight, and image licenses before reuse.
+- Data posture: Legacy image/model workflow only; image data, labels, trained weights, and evaluation splits require provenance/license/privacy review.
+- Private-data rule: Do not add private images, customer/store identifiers, model weights with unclear rights, or API keys.
+- Security/hardware warning: Treat model files and image inputs as untrusted; do not deserialize arbitrary artifacts without sandboxing and checksum/provenance review.
+- Hardware/runtime support caveat: No GPU, CUDA, cuDNN, driver, container, model-weight, or training/inference runtime support is currently certified or tested by this preservation change. Treat hardware acceleration and CPU-only fallback behavior as unknown until a revival task pins dependencies and verifies public-synthetic smoke tests on the target environment.
 
-<!-- PORTFOLIO-CONSTITUTION:START -->
-## Portfolio engineering constitution
+Exact commands:
+- Setup: no supported automated setup is declared; treating runtime setup as a revival gate is required.
+- Tests: no inherited runtime test suite is claimed; run the architecture checker only.
+- Lint/format: no lint/format command is declared.
+- Architecture: `python scripts/check_portfolio_architecture.py`
 
-This repository follows [Portfolio Project #24](https://github.com/users/googa27/projects/24) and [PizzaRecognition rollout issue](https://github.com/googa27/arxiv-implementation-lab/issues/24). A repository-specific, evidence-backed exception in `docs/ARCHITECTURE.yaml` may specialize a rule; undocumented drift is not an exception.
+Implementation rules for future work:
+- Research upstream/current maintained libraries, standards, datasets, licenses, and security posture before changing runtime code.
+- Prefer maintained libraries; custom code must be limited to domain semantics, adapters, composition, or genuinely missing algorithms with oracle/reference tests.
+- Avoid invasive refactors of inherited code. Record exact no-growth exceptions and compatibility risks before structural changes.
+- Do not introduce generated caches, secrets, private identifiers, restricted data, or fabricated outputs.
+- Keep AI-facing contracts deterministic and local. Add Hermes skills for recurring workflows only; plugin/MCP needs stable public contracts, measured multi-client need, least privilege, and separate verification.
+- Human/notebook interface: Current script/demo API may be documented; typed model adapter only if independently revived.
+- Core posture: No core coupling; optional generic model-output manifest only after revival.
 
-### Research and maintained-library preference
+Revival gates:
+- Resolve source/upstream and root license before distributing code, images, labels, or weights.
+- Define dataset card/model card with provenance, rights, split, metrics, and failure modes.
+- Pin ML framework, Python, GPU/CUDA/cuDNN/driver or CPU-only runtime versions and add deterministic smoke tests using public-synthetic images.
+- Review artifact loading security before accepting external weights or serialized objects.
 
-- Research domain theory, maintained libraries, standards, interfaces, datasets, licenses, adjacent repositories, and probable extension paths before design or implementation.
-- **Maintained-library preference:** use well-maintained libraries for solved algorithms, protocols, parsers, persistence, orchestration, dataframes, numerical methods, and security controls instead of implementing them from scratch. Record capability, selected library, alternatives, maintenance/API/license evidence, adapter boundary, and any custom-code justification.
-- Custom code belongs to domain semantics, composition, adapters/contracts, or genuinely missing algorithms and must be tested against an oracle/reference.
-- Turn reusable findings into maintained Hermes skills and concise support files. Add a plugin or MCP server only when stable CLI/contracts have multiple measured consumers or real interoperable external-tool needs.
-
-### Clean and evolutionary architecture
-
-After the dependency route is sound, apply SOLID, DRY knowledge ownership, suitable design patterns, explicit dependencies, low coupling, cohesive modules, extensibility, maintainability, and technical-debt minimization. Design for probable extensions, not speculative frameworks. Every meaningful change reduces named debt or adds an executable fitness function.
-
-`docs/ARCHITECTURE.yaml` is the machine-readable source of truth. Update it in the same change as architecture, public API, test, CI, data, AI-interface, or exception changes.
-
-- At each Python `src/` level, count immediate runtime `.py` files and package directories, excluding `__init__.py` and architecture/readme/typing metadata. Default maximum: 10. Deepen hierarchy around stable responsibilities instead of widening it.
-- Default Python module maximum: 500 physical lines. Larger legacy files are exact no-growth exceptions with reason, owner/context, risk, accepted ceiling, and refactoring trigger.
-- Keep `tests/unit`, `tests/integration`, `tests/e2e`, and `tests/architecture`; mirror source where useful. Empty suites document their intended boundary and activation trigger.
-- Architecture tests enforce the YAML contract, source fan-out, module-size ratchets, exception metadata, required docs/suites, and repository-specific import/public-API rules.
-
-### Two first-class users
-
-1. **Hermes Agent and compatible agents:** this concise root file, deterministic CLI/public contracts, exact verification commands, and capability discovery are the baseline. Skills encode recurring procedures. Plugins/MCP are optional escalation layers, never substitutes for a stable public interface; mutation tools must be explicit, typed, least-privileged, and separately verifiable.
-2. **Human programmer/notebook user:** provide a typed, documented importable API independent of CLI/UI internals and deterministic public-synthetic notebook examples where the repository is a library. Use only lawful Python protocols: compact `__repr__`, value equality/hash for deeply immutable objects, true collection/context/NumPy protocols, and pure IPython display hooks. Prefer named methods for policy, configuration, I/O, diagnostics, expensive/stateful behavior, or ambiguous mathematics. Test every claimed algebraic law and named-method/operator parity.
-
-### Data and core-repository boundaries
-
-For data-consuming work, design `source registry -> typed acquisition -> immutable Bronze -> canonical Silver -> curated Gold/features -> formulation/model -> governed output -> read-only UI/API/notebook` before implementation. Record grain, units, classification, lineage, quality, freshness/vintage/effective time, identity, replay, and validation.
-
-- `PDP` owns reusable/public data acquisition and products.
-- `financial_problem_formulations` owns general problem/formulation/formula/workflow semantics.
-- `ui_and_artifacts` owns reusable audience-aware rendering and artifact QA.
-- Consume stable public contracts/CLIs, not repository internals. Keep canonical names theoretical/general rather than deal/product-specific.
-
-Repository posture: No core coupling; optionally emit generic model-output manifest after revival. Data posture: Legacy image data/model artifacts require license/provenance review before reuse.
-
-### Exact commands
-
-- Setup: `No supported automated setup is currently declared; treat this as a revival gate.`
-- Tests: `No executable test command is currently declared; run the architecture checker only.`
-- Lint/format: `No lint command is currently declared.`
-- Portfolio architecture: `python scripts/check_portfolio_architecture.py`
-
-If a command is declared unavailable, the activation trigger and replacement command belong in `docs/ARCHITECTURE.yaml`; do not fabricate successful output.
-<!-- PORTFOLIO-CONSTITUTION:END -->
+Definition of done for preservation edits:
+- README, AGENTS, `docs/ARCHITECTURE.yaml`, `docs/ARCHITECTURE.md`, and tests agree.
+- `python scripts/check_portfolio_architecture.py` passes.
+- Only advisory governance files are changed unless a separate reviewed revival task authorizes runtime edits.
