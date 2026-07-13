@@ -24,6 +24,9 @@ REQUIRED_TOP_LEVEL = {
 REQUIRED_EXCEPTION_FIELDS = {
     "rule", "path", "reason", "owner", "risk", "accepted_ceiling", "refactoring_trigger",
 }
+ENFORCED_EXCEPTION_RULES = {"source_fanout", "source_entry_type", "python_module_max_lines"}
+DEFAULT_MAX_IMMEDIATE_RUNTIME_ENTRIES = 10
+DEFAULT_MAX_PYTHON_MODULE_LINES = 500
 REQUIRED_PRESERVATION_FIELDS = {
     "archival_notice", "supersession_notice", "revival_gates", "provenance",
     "license_warning", "security_warning", "runtime_support_warning", "private_data_warning",
@@ -68,11 +71,42 @@ def exception_map(contract: dict[str, Any], errors: list[str]) -> dict[tuple[str
         if missing:
             errors.append(f"exceptions[{index}] missing metadata: {sorted(missing)}")
             continue
-        key = (str(item["rule"]), str(item["path"]))
+        rule = str(item["rule"])
+        if rule not in ENFORCED_EXCEPTION_RULES:
+            errors.append(
+                f"exceptions[{index}].rule must be one of enforced checker rules: "
+                f"{sorted(ENFORCED_EXCEPTION_RULES)}"
+            )
+        key = (rule, str(item["path"]))
         if key in result:
             errors.append(f"duplicate exception for {key[0]}:{key[1]}")
         result[key] = item
     return result
+
+
+def validate_limits(contract: dict[str, Any], errors: list[str]) -> tuple[int, int] | None:
+    limits = contract.get("limits")
+    if not isinstance(limits, dict):
+        errors.append("limits must be an object")
+        return None
+
+    values: dict[str, int] = {}
+    expected = {
+        "max_immediate_runtime_entries": DEFAULT_MAX_IMMEDIATE_RUNTIME_ENTRIES,
+        "max_python_module_lines": DEFAULT_MAX_PYTHON_MODULE_LINES,
+    }
+    for key, default in expected.items():
+        value = limits.get(key)
+        if not isinstance(value, int) or isinstance(value, bool):
+            errors.append(f"limits.{key} must be integer {default}")
+            continue
+        values[key] = value
+        if value != default:
+            errors.append(f"default {key} must be {default}; repo override belongs in an exception")
+
+    if set(values) != set(expected):
+        return None
+    return values["max_immediate_runtime_entries"], values["max_python_module_lines"]
 
 
 def require_exception(exceptions: dict[tuple[str, str], dict[str, Any]], rule: str, path: str, actual: int, errors: list[str]) -> None:
@@ -94,12 +128,16 @@ def runtime_dir(path: Path) -> bool:
         return False
 
 
-def validate_source(contract: dict[str, Any], exceptions: dict[tuple[str, str], dict[str, Any]], errors: list[str]) -> None:
+def validate_source(
+    contract: dict[str, Any],
+    exceptions: dict[tuple[str, str], dict[str, Any]],
+    max_entries: int,
+    max_lines: int,
+    errors: list[str],
+) -> None:
     layout = contract["source_layout"]
     if not layout.get("python_rules_applicable", True):
         return
-    max_entries = int(contract["limits"]["max_immediate_runtime_entries"])
-    max_lines = int(contract["limits"]["max_python_module_lines"])
     allowed_non_python = set(layout.get("allowed_non_python_files", []))
     metadata = DEFAULT_METADATA | set(layout.get("metadata_names", []))
     roots = [ROOT / p for p in layout.get("python_source_roots", [])]
@@ -149,6 +187,7 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
         errors.append("repository.profile must remain legacy for Project #24 preservation repos")
     if str(repo.get("enforcement", "")).lower() != "advisory":
         errors.append("repository.enforcement must be Advisory unless the repo is formally revived")
+    limits = validate_limits(contract, errors)
     preservation = contract["preservation"]
     missing_preservation = REQUIRED_PRESERVATION_FIELDS - set(preservation)
     if missing_preservation:
@@ -172,10 +211,6 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
         for fragment in required_fragments:
             if fragment not in text:
                 errors.append(f"README.md missing preservation fragment: {fragment}")
-    if contract["limits"].get("max_immediate_runtime_entries") != 10:
-        errors.append("default max_immediate_runtime_entries must be 10; repo override belongs in an exception")
-    if contract["limits"].get("max_python_module_lines") != 500:
-        errors.append("default max_python_module_lines must be 500; repo override belongs in an exception")
     required_docs = contract["governance"].get("required_documents", [])
     for rel in required_docs:
         path = ROOT / rel
@@ -196,7 +231,8 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
     decisions = contract["libraries"].get("decisions", [])
     if not contract["libraries"].get("selection_policy") or len(decisions) < 2:
         errors.append("maintained-library selection policy and at least two decisions are required")
-    validate_source(contract, exceptions, errors)
+    if limits is not None:
+        validate_source(contract, exceptions, limits[0], limits[1], errors)
     return errors
 
 

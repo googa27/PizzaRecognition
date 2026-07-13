@@ -144,7 +144,7 @@
       "lint": "No lint command is currently declared.",
       "architecture": "python scripts/check_portfolio_architecture.py"
     },
-    "ci_workflow": "advisory; see blocking_ci exception",
+    "ci_workflow": "local/advisory only; enable blocking CI before revival or maintained runtime claims.",
     "mirror_source": "Only after revival and stable source boundaries."
   },
   "data": {
@@ -187,26 +187,7 @@
       "docs/ARCHITECTURE.yaml",
       "docs/ARCHITECTURE.md"
     ],
-    "exception_policy": "exact scope, reason, owner, risk, accepted ceiling, and refactoring trigger; no-growth ratchet"
+    "exception_policy": "Future exceptions must use an enforced checker rule name plus exact scope, reason, owner, risk, accepted ceiling, and refactoring trigger; no-growth ratchet."
   },
-  "exceptions": [
-    {
-      "rule": "python_source_layout",
-      "path": "src/",
-      "reason": "Legacy/fork/hardware preservation does not force a source-layout migration in an advisory documentation change.",
-      "owner": "googa27 Portfolio Project #24",
-      "risk": "Python source topology is not protected by src-specific blocking checks while archived.",
-      "accepted_ceiling": 0,
-      "refactoring_trigger": "Before adding a maintained Python package or material runtime feature, design a src layout and activate source checks."
-    },
-    {
-      "rule": "blocking_ci",
-      "path": ".github/workflows/portfolio-architecture.yml",
-      "reason": "Advisory legacy/fork/hardware preservation avoids noisy CI divergence until formal revival.",
-      "owner": "googa27 Portfolio Project #24",
-      "risk": "Architecture checks are local/advisory rather than automatic on the default branch.",
-      "accepted_ceiling": 0,
-      "refactoring_trigger": "Enable blocking CI before the first new runtime feature, public release, or maintained status claim."
-    }
-  ]
+  "exceptions": []
 }
