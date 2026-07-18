@@ -1,0 +1,257 @@
+name: Build Chile demographic public-data bundle
+
+on:
+  push:
+    branches:
+      - automation/chile-demographic-pde-data-20260718
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: "4.4.3"
+          use-public-rspm: true
+
+      - name: Install Python acquisition dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pandas==2.3.3 pyarrow==21.0.0 requests==2.32.5 beautifulsoup4==4.14.2
+
+      - name: Fetch OWID and INE public catalog data
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          from pathlib import Path
+          from urllib.parse import urljoin
+
+          import pandas as pd
+          import requests
+          from bs4 import BeautifulSoup
+
+          ROOT = Path("build/chile-demographic-data")
+          RAW = ROOT / "raw" / "owid"
+          PROCESSED = ROOT / "processed" / "owid_chile"
+          INE = ROOT / "raw" / "ine_catalog"
+          for directory in (RAW, PROCESSED, INE):
+              directory.mkdir(parents=True, exist_ok=True)
+
+          session = requests.Session()
+          session.headers.update({"User-Agent": "chile-demographic-pde-research/2.0 (public-data reproducibility)"})
+
+          slugs = {
+              "fertility_rate_by_age_group": "fertility-rate-by-age-group",
+              "population_by_five_year_age_group": "population-by-five-year-age-group",
+              "annual_deaths_by_age": "annual-deaths-by-age",
+              "death_rates_by_age_and_sex": "annual-death-rates-in-different-age-groups-by-sex",
+              "un_total_fertility_rate": "children-per-woman-un",
+              "hfd_period_total_fertility_rate": "period-total-fertility-rate",
+              "hfd_total_live_births": "total-live-births-hfd",
+              "female_population_by_age_group": "female-population-by-age-group",
+              "male_population_by_age_group": "male-population-by-age-group",
+          }
+          required = {
+              "fertility_rate_by_age_group",
+              "population_by_five_year_age_group",
+              "annual_deaths_by_age",
+              "death_rates_by_age_and_sex",
+              "un_total_fertility_rate",
+              "hfd_period_total_fertility_rate",
+          }
+
+          inventory: list[dict[str, object]] = []
+          failures: dict[str, str] = {}
+          for logical_name, slug in slugs.items():
+              csv_url = f"https://ourworldindata.org/grapher/{slug}.csv?v=1&csvType=full&useColumnShortNames=false"
+              metadata_url = f"https://ourworldindata.org/grapher/{slug}.metadata.json?v=1&csvType=full&useColumnShortNames=false"
+              try:
+                  response = session.get(csv_url, timeout=120)
+                  response.raise_for_status()
+                  raw_path = RAW / f"{logical_name}.csv"
+                  raw_path.write_bytes(response.content)
+                  frame = pd.read_csv(raw_path)
+                  if "Code" in frame.columns:
+                      chile = frame.loc[frame["Code"].eq("CHL")].copy()
+                  elif "Entity" in frame.columns:
+                      chile = frame.loc[frame["Entity"].eq("Chile")].copy()
+                  else:
+                      raise ValueError(f"No entity identifier in columns: {list(frame.columns)}")
+                  if chile.empty:
+                      raise ValueError("Chile is absent from the downloaded chart")
+                  chile_path = PROCESSED / f"{logical_name}.csv"
+                  chile.to_csv(chile_path, index=False)
+
+                  metadata_response = session.get(metadata_url, timeout=120)
+                  metadata_response.raise_for_status()
+                  metadata_path = RAW / f"{logical_name}.metadata.json"
+                  metadata_path.write_bytes(metadata_response.content)
+                  inventory.append(
+                      {
+                          "logical_name": logical_name,
+                          "slug": slug,
+                          "source_url": csv_url,
+                          "metadata_url": metadata_url,
+                          "n_rows_full": int(len(frame)),
+                          "n_rows_chile": int(len(chile)),
+                          "year_min": int(chile["Year"].min()) if "Year" in chile else None,
+                          "year_max": int(chile["Year"].max()) if "Year" in chile else None,
+                          "columns": list(chile.columns),
+                          "sha256_full": hashlib.sha256(response.content).hexdigest(),
+                          "sha256_chile": hashlib.sha256(chile_path.read_bytes()).hexdigest(),
+                      }
+                  )
+                  print(f"Fetched {logical_name}: {len(chile)} Chile rows")
+              except Exception as exc:
+                  failures[logical_name] = repr(exc)
+                  print(f"FAILED {logical_name}: {exc!r}")
+
+          missing_required = sorted(required.intersection(failures))
+          if missing_required:
+              raise RuntimeError(f"Required OWID downloads failed: {missing_required}; details={failures}")
+
+          (ROOT / "owid_inventory.json").write_text(
+              json.dumps({"datasets": inventory, "optional_failures": failures}, indent=2, sort_keys=True),
+              encoding="utf-8",
+          )
+
+          ine_url = "https://www.ine.gob.cl/estadisticas-por-tema/demografia-y-poblacion/estadisticas-vitales"
+          ine_response = session.get(ine_url, timeout=120)
+          ine_response.raise_for_status()
+          (INE / "estadisticas_vitales_page.html").write_bytes(ine_response.content)
+          soup = BeautifulSoup(ine_response.text, "html.parser")
+          rows: list[dict[str, str]] = []
+          for anchor in soup.find_all("a", href=True):
+              href = urljoin(ine_url, anchor["href"])
+              text = " ".join(anchor.get_text(" ", strip=True).split())
+              href_lower = href.lower()
+              text_lower = text.lower()
+              if any(token in href_lower for token in (".xlsx", ".xls", ".csv", ".zip", ".pdf")) or any(
+                  token in text_lower for token in ("tabulado", "anuario", "base de datos", "cifras provisionales")
+              ):
+                  rows.append({"text": text, "url": href})
+          links = pd.DataFrame(rows).drop_duplicates().sort_values(["text", "url"])
+          links.to_csv(INE / "ine_vital_statistics_download_catalog.csv", index=False)
+          (INE / "page_sha256.txt").write_text(hashlib.sha256(ine_response.content).hexdigest() + "\n")
+          print(f"INE catalog contains {len(links)} candidate resources")
+          PY
+
+      - name: Install and extract UN WPP 2024 package data
+        shell: bash
+        run: |
+          set -euo pipefail
+          Rscript - <<'RS'
+          options(repos = c(CRAN = "https://cloud.r-project.org"))
+          install.packages(c("data.table", "remotes"), quiet = TRUE)
+          remotes::install_github("PPgp/wpp2024", dependencies = FALSE, upgrade = "never", quiet = TRUE)
+          library(data.table)
+          library(wpp2024)
+
+          root <- "build/chile-demographic-data"
+          raw_dir <- file.path(root, "raw", "wpp2024")
+          processed_dir <- file.path(root, "processed", "wpp2024_chile")
+          dir.create(raw_dir, recursive = TRUE, showWarnings = FALSE)
+          dir.create(processed_dir, recursive = TRUE, showWarnings = FALSE)
+
+          object_names <- c(
+            "pop1dt", "popAge1dt", "popproj1dt", "popprojAge1dt",
+            "mx1dt", "percentASFR1dt", "tfr1dt", "tfrproj1dt",
+            "mig1dt", "migproj1dt", "migprojAge1dt", "migration1dt",
+            "misc1dt", "miscproj1dt", "e01dt", "e0proj1dt", "sexRatio1dt"
+          )
+
+          manifest <- list()
+          for (nm in object_names) {
+            env <- new.env(parent = emptyenv())
+            data(list = nm, package = "wpp2024", envir = env)
+            if (!exists(nm, envir = env, inherits = FALSE)) {
+              stop(sprintf("Dataset %s was not created by data()", nm))
+            }
+            dt <- as.data.table(get(nm, envir = env, inherits = FALSE))
+            if ("name" %in% names(dt)) {
+              chile <- dt[name == "Chile"]
+            } else if ("country_code" %in% names(dt)) {
+              chile <- dt[country_code == 152]
+            } else {
+              stop(sprintf("Dataset %s has neither name nor country_code: %s", nm, paste(names(dt), collapse = ", ")))
+            }
+            if (nrow(chile) == 0L) {
+              stop(sprintf("Dataset %s contains no Chile rows", nm))
+            }
+            output <- file.path(processed_dir, paste0(nm, ".csv"))
+            fwrite(chile, output)
+            manifest[[nm]] <- list(
+              n_rows = nrow(chile),
+              n_columns = ncol(chile),
+              columns = names(chile),
+              year_min = if ("year" %in% names(chile)) min(chile$year, na.rm = TRUE) else NA,
+              year_max = if ("year" %in% names(chile)) max(chile$year, na.rm = TRUE) else NA
+            )
+            cat(sprintf("Extracted %s: %d rows x %d columns\n", nm, nrow(chile), ncol(chile)))
+          }
+          saveRDS(manifest, file.path(raw_dir, "extraction_manifest.rds"))
+          writeLines(capture.output(dput(manifest)), file.path(raw_dir, "extraction_manifest.R"))
+          writeLines(capture.output(sessionInfo()), file.path(raw_dir, "R_session_info.txt"))
+          RS
+
+      - name: Build checksums and bundle manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          from pathlib import Path
+
+          import pandas as pd
+
+          root = Path("build/chile-demographic-data")
+          files = sorted(path for path in root.rglob("*") if path.is_file())
+          checksum_lines = []
+          manifest = []
+          for path in files:
+              relative = path.relative_to(root).as_posix()
+              digest = hashlib.sha256(path.read_bytes()).hexdigest()
+              checksum_lines.append(f"{digest}  {relative}")
+              record = {"path": relative, "sha256": digest, "bytes": path.stat().st_size}
+              if path.suffix == ".csv":
+                  frame = pd.read_csv(path)
+                  record.update({"rows": int(len(frame)), "columns": list(frame.columns)})
+              manifest.append(record)
+          (root / "checksums.sha256").write_text("\n".join(checksum_lines) + "\n", encoding="utf-8")
+          (root / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
+          print(f"Manifested {len(files)} files")
+          PY
+
+      - name: Upload Chile demographic data bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: chile-demographic-public-data
+          path: build/chile-demographic-data
+          if-no-files-found: error
+          compression-level: 9
+          retention-days: 7
