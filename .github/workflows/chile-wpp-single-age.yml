@@ -1,0 +1,120 @@
+name: Extract Chile WPP 2024 single-age data
+
+on:
+  push:
+    branches:
+      - automation/chile-demographic-pde-data-20260718
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  extract-wpp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: "4.4.3"
+          use-public-rspm: true
+
+      - name: Clone and install WPP package without GitHub API
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/PPgp/wpp2024.git /tmp/wpp2024
+          Rscript -e 'install.packages("data.table", repos="https://cloud.r-project.org", quiet=TRUE)'
+          R CMD INSTALL /tmp/wpp2024
+          git -C /tmp/wpp2024 rev-parse HEAD > /tmp/wpp2024_commit.txt
+
+      - name: Extract all relevant Chile objects
+        shell: bash
+        run: |
+          set -euo pipefail
+          Rscript - <<'RS'
+          library(data.table)
+          library(wpp2024)
+
+          root <- "build/chile-wpp-single-age"
+          out <- file.path(root, "processed", "wpp2024_chile")
+          raw <- file.path(root, "raw", "wpp2024")
+          dir.create(out, recursive = TRUE, showWarnings = FALSE)
+          dir.create(raw, recursive = TRUE, showWarnings = FALSE)
+          file.copy("/tmp/wpp2024_commit.txt", file.path(raw, "source_commit.txt"), overwrite = TRUE)
+
+          required <- c(
+            "pop1dt", "popAge1dt", "popproj1dt", "popprojAge1dt",
+            "mx1dt", "percentASFR1dt", "tfr1dt", "tfrproj1dt",
+            "mig1dt", "migproj1dt", "migprojAge1dt", "migration1dt",
+            "misc1dt", "miscproj1dt", "e01dt", "e0proj1dt", "sexRatio1dt"
+          )
+
+          manifest <- list()
+          for (nm in required) {
+            env <- new.env(parent = baseenv())
+            data(list = nm, package = "wpp2024", envir = env)
+            stopifnot(exists(nm, envir = env, inherits = FALSE))
+            dt <- as.data.table(get(nm, envir = env, inherits = FALSE))
+            if ("name" %in% names(dt)) {
+              chile <- dt[name == "Chile"]
+            } else if ("country_code" %in% names(dt)) {
+              chile <- dt[country_code == 152]
+            } else {
+              stop(sprintf("%s has no country field: %s", nm, paste(names(dt), collapse=",")))
+            }
+            if (nrow(chile) == 0L) stop(sprintf("%s has zero Chile rows", nm))
+            fwrite(chile, file.path(out, paste0(nm, ".csv")))
+            manifest[[nm]] <- list(
+              rows = nrow(chile),
+              columns = names(chile),
+              year_min = if ("year" %in% names(chile)) min(chile$year, na.rm=TRUE) else NA,
+              year_max = if ("year" %in% names(chile)) max(chile$year, na.rm=TRUE) else NA
+            )
+            cat(sprintf("%s: %d rows; %s\n", nm, nrow(chile), paste(names(chile), collapse="|")))
+          }
+          writeLines(capture.output(dput(manifest)), file.path(raw, "extraction_manifest.R"))
+          writeLines(capture.output(sessionInfo()), file.path(raw, "R_session_info.txt"))
+          RS
+
+      - name: Add JSON manifest and checksums
+        shell: bash
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import csv
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path("build/chile-wpp-single-age")
+          records = []
+          checksums = []
+          for path in sorted(p for p in root.rglob("*") if p.is_file()):
+              relative = path.relative_to(root).as_posix()
+              digest = hashlib.sha256(path.read_bytes()).hexdigest()
+              rec = {"path": relative, "bytes": path.stat().st_size, "sha256": digest}
+              if path.suffix == ".csv":
+                  with path.open(newline="", encoding="utf-8") as stream:
+                      reader = csv.reader(stream)
+                      header = next(reader)
+                      rows = sum(1 for _ in reader)
+                  rec.update({"rows": rows, "columns": header})
+              records.append(rec)
+              checksums.append(f"{digest}  {relative}")
+          (root / "manifest.json").write_text(json.dumps(records, indent=2), encoding="utf-8")
+          (root / "checksums.sha256").write_text("\n".join(checksums) + "\n", encoding="utf-8")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chile-wpp2024-single-age
+          path: build/chile-wpp-single-age
+          if-no-files-found: error
+          compression-level: 9
+          retention-days: 7
